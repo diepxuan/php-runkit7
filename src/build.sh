@@ -184,6 +184,36 @@ if ! gpg --list-keys --with-colons | grep -q "fpr"; then
     echo "$GPG_KEY====" | tr -d '\n' | fold -w 4 | sed '$ d' | tr -d '\n' | fold -w 76 | base64 -di | gpg --batch --import || true
 fi
 
+#!/bin/bash
+
+# Lấy danh sách tất cả GPG key IDs
+KEYS=$(gpg --list-secret-keys --keyid-format=long | awk '/sec/{print $2}' | cut -d'/' -f2)
+
+# Lặp qua từng key và chỉnh sửa
+for KEY in $KEYS; do
+    # Cập nhật expiration date của subkey
+    gpg --batch --command-fd 0 --edit-key "$KEY" <<EOF
+key 1
+expire
+0
+save
+EOF
+
+    # Cập nhật expiration date của key chính
+    gpg --batch --command-fd 0 --edit-key "$KEY" <<EOF
+expire
+0
+save
+EOF
+
+    # Đặt key thành Ultimate Trust
+    gpg --batch --command-fd 0 --edit-key "$KEY" <<EOF
+trust
+5
+save
+EOF
+done
+
 if gpg --list-secret-keys --keyid-format=long | grep -q "sec"; then
     export DEB_SIGN_KEYID=$(gpg --list-keys --with-colons --fingerprint | awk -F: '/fpr:/ {print $10; exit}')
 fi
